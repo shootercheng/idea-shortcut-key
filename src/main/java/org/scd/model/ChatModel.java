@@ -1,10 +1,15 @@
 package org.scd.model;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.language.StreamingLanguageModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingLanguageModel;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Properties;
 
 public class ChatModel {
@@ -15,7 +20,9 @@ public class ChatModel {
 
     private ChatLanguageModel chatLanguageModel;
 
-    public ChatModel(String configPath) {
+    private StreamingChatLanguageModel streamingChatLanguageModel;
+
+    public ChatModel(String configPath, Boolean isStream) {
         this.configPath = configPath;
         modelProperties = new Properties();
         try {
@@ -43,16 +50,32 @@ public class ChatModel {
         if (logResponses == null) {
             logResponses = "false";
         }
-        this.chatLanguageModel = OpenAiChatModel.builder()
-                .baseUrl(baseUrl)
-                .apiKey(apiKey)
-                .modelName(modelName)
-                .logRequests(Boolean.parseBoolean(logRequests))
-                .logResponses(Boolean.parseBoolean(logResponses))
-                .build();
+        if (isStream) {
+            this.streamingChatLanguageModel = OpenAiStreamingChatModel.builder()
+                    .baseUrl(baseUrl)
+                    .apiKey(apiKey)
+                    .modelName(modelName)
+                    .logRequests(Boolean.parseBoolean(logRequests))
+                    .logResponses(Boolean.parseBoolean(logResponses))
+                    .timeout(Duration.ofMinutes(3))
+                    .build();
+        } else {
+            this.chatLanguageModel = OpenAiChatModel.builder()
+                    .baseUrl(baseUrl)
+                    .apiKey(apiKey)
+                    .modelName(modelName)
+                    .logRequests(Boolean.parseBoolean(logRequests))
+                    .logResponses(Boolean.parseBoolean(logResponses))
+                    .timeout(Duration.ofMinutes(3))
+                    .build();
+        }
     }
 
     public ChatLanguageModel getChatLanguageModel() {
         return chatLanguageModel;
+    }
+
+    public StreamingChatLanguageModel getStreamingChatLanguageModel() {
+        return streamingChatLanguageModel;
     }
 }

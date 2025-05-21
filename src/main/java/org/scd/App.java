@@ -10,21 +10,26 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.onnx.allminilml6v2q.AllMiniLmL6V2QuantizedEmbeddingModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.TokenStream;
 import org.scd.model.ChatModel;
 import org.scd.parser.XmlParser;
 import org.scd.translate.DataPersistence;
 import org.scd.translate.KeyIdTranslate;
 import org.scd.translate.TranslateItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Hello world!
  */
 public class App {
+    private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
 
     // Init Model and Store
     private static final DuckDBEmbeddingStore embeddingStore = DuckDBEmbeddingStore.builder()
@@ -33,8 +38,6 @@ public class App {
             .build();
     private static final AllMiniLmL6V2QuantizedEmbeddingModel embeddingModel =
             new AllMiniLmL6V2QuantizedEmbeddingModel();
-
-    private static int BATCH_SIZE = 50;
 
 
     public static void main(String[] args) {
@@ -60,31 +63,53 @@ public class App {
         Map<String, List<String>> keyMapRes = xmlParser.getResult();
         StringBuilder stringBuilder = new StringBuilder();
         List<TranslateItem> translateItemList = new ArrayList<>();
-        final int[] count = {0};
+        DataPersistence dataPersistence = new DataPersistence("database/shortcut-key.duck");
         keyMapRes.forEach((key, value) -> {
-            if (count[0] == BATCH_SIZE) {
-                addTranslate(stringBuilder, translateItemList);
-                stringBuilder.setLength(0);
-            } else {
+            TranslateItem translateItem = dataPersistence.queryDataByEn(key);
+            if (translateItem.getEn() == null) {
                 stringBuilder.append(key).append(",");
             }
-            count[0]++;
+
         });
-        if (count[0] > 0) {
+        if (!stringBuilder.isEmpty()) {
             addTranslate(stringBuilder, translateItemList);
         }
-        DataPersistence dataPersistence = new DataPersistence("database/shortcut-key.duck");
         dataPersistence.insertDataList(translateItemList);
         return translateItemList;
     }
 
     private static void addTranslate(StringBuilder stringBuilder, List<TranslateItem> translateItemList) {
-        ChatModel chatModel = new ChatModel("/config/shortcut-key/model.properties");
+        ChatModel chatModel = new ChatModel("/config/shortcut-key/model.properties", true);
         KeyIdTranslate keyIdTranslate = AiServices.builder(KeyIdTranslate.class)
-                .chatLanguageModel(chatModel.getChatLanguageModel())
+                .streamingChatLanguageModel(chatModel.getStreamingChatLanguageModel())
                 .build();
-        String res = keyIdTranslate.ideaKeyMapTranslate(stringBuilder.toString());
-        var parseRes = JsonParser.parseString(res);
+        TokenStream tokenStream = keyIdTranslate.ideaKeyMapTranslateStream(stringBuilder.toString());
+        AtomicReference<Boolean> isComplete = new AtomicReference<>(false);
+        AtomicReference<String> res = new AtomicReference<>("");
+        tokenStream.onPartialResponse((s) -> {
+            LOGGER.info("partial response str {}", s);
+        });
+        tokenStream.onCompleteResponse(chatResponse -> {
+            LOGGER.info("message text {}", chatResponse.aiMessage().text());
+            isComplete.set(true);
+            res.set(chatResponse.aiMessage().text());
+        });
+        tokenStream.onRetrieved(contents -> {
+            LOGGER.info("content list {}", contents);
+        });
+        tokenStream.onError(throwable -> {
+            LOGGER.error("request error ", throwable);
+        });
+        tokenStream.start();
+        while (!isComplete.get()) {
+            LOGGER.info("wait 10s..");
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        var parseRes = JsonParser.parseString(res.get());
         if (parseRes instanceof JsonObject jsonObject) {
             Iterator<Map.Entry<String, JsonElement>> iterator = jsonObject.entrySet().iterator();
             while (iterator.hasNext()) {
