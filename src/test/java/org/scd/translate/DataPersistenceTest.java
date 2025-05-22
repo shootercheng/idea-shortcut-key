@@ -39,4 +39,11 @@ public class DataPersistenceTest {
         });
         dataPersistence.dropTable();
     }
+
+    @Test
+    public void testPrintAll() {
+        DataPersistence dataPersistence = new DataPersistence("database/shortcut-key.duck");
+        List<TranslateItem> dataPersistenceList = dataPersistence.queryAllData();
+        LOGGER.info("data persistence size {}", dataPersistenceList.size());
+    }
 }

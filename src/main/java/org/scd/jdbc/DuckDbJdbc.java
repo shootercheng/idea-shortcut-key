@@ -21,12 +21,10 @@ public class DuckDbJdbc {
         }
     }
 
-    // 获取内存数据库连接
     public static Connection getInMemoryConnection() throws SQLException {
         return DriverManager.getConnection(URL_PREFIX + ":memory:");
     }
 
-    // 获取文件数据库连接
     public static Connection getFileConnection(String filePath) throws SQLException {
         return DriverManager.getConnection(URL_PREFIX + filePath);
     }
