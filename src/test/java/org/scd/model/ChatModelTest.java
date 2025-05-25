@@ -1,5 +1,6 @@
 package org.scd.model;
 
+import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
 import org.junit.Assert;
@@ -8,6 +9,10 @@ import org.scd.translate.KeyIdTranslate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ChatModelTest {
@@ -42,19 +47,19 @@ public class ChatModelTest {
     }
 
     @Test
-    public void testStreamTranslate() {
+    public void testStreamTranslate() throws ExecutionException, InterruptedException, TimeoutException {
         ChatModel chatModel = new ChatModel("/config/shortcut-key/model.properties", true);
         KeyIdTranslate keyIdTranslate = AiServices.builder(KeyIdTranslate.class)
                 .streamingChatLanguageModel(chatModel.getStreamingChatLanguageModel())
                 .build();
         TokenStream tokenStream = keyIdTranslate.ideaKeyMapTranslateStream("EditorToggleCase,GotoCustomRegion,FindInPath");
-        AtomicReference<Boolean> isComplete = new AtomicReference<>(false);
         tokenStream.onPartialResponse((s) -> {
             LOGGER.info("partial response str {}", s);
         });
+        CompletableFuture<ChatResponse> futureResponse = new CompletableFuture<>();
         tokenStream.onCompleteResponse(chatResponse -> {
             LOGGER.info("message text {}", chatResponse.aiMessage().text());
-            isComplete.set(true);
+            futureResponse.complete(chatResponse);
         });
         tokenStream.onRetrieved(contents -> {
             LOGGER.info("content list {}", contents);
@@ -63,14 +68,8 @@ public class ChatModelTest {
             LOGGER.error("request error ", throwable);
         });
         tokenStream.start();
-        while (!isComplete.get()) {
-            LOGGER.info("wait 30s..");
-            try {
-                Thread.sleep(30000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        ChatResponse chatResponse = futureResponse.get(3, TimeUnit.MINUTES);
+        LOGGER.info("result text {}", chatResponse.aiMessage().text());
     }
 
 }

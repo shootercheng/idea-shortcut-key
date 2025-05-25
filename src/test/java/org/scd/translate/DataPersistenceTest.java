@@ -46,4 +46,10 @@ public class DataPersistenceTest {
         List<TranslateItem> dataPersistenceList = dataPersistence.queryAllData();
         LOGGER.info("data persistence size {}", dataPersistenceList.size());
     }
+
+    @Test
+    public void testDeleteByEn() {
+        DataPersistence dataPersistence = new DataPersistence("database/shortcut-key.duck");
+        dataPersistence.deleteByEn("FindInPath");
+    }
 }

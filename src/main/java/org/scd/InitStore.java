@@ -1,12 +1,12 @@
 package org.scd;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.alibaba.fastjson.JSONObject;
 import dev.langchain4j.community.store.embedding.duckdb.DuckDBEmbeddingStore;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.model.embedding.onnx.allminilml6v2q.AllMiniLmL6V2QuantizedEmbeddingModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
@@ -17,14 +17,16 @@ import org.scd.parser.XmlParser;
 import org.scd.translate.DataPersistence;
 import org.scd.translate.KeyIdTranslate;
 import org.scd.translate.TranslateItem;
+import org.scd.util.PropertiesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class InitStore {
     private static final Logger LOGGER = LoggerFactory.getLogger(InitStore.class);
@@ -35,7 +37,7 @@ public class InitStore {
 
     private static final String KEYMAP_PATH = "keymap";
 
-    private static final String VECTOR_TABLE_NAME = "idea_plugin";
+    private static final String VECTOR_TABLE_NAME = "idea_plugin_openai";
 
     // Init Model and Store
     public static final DuckDBEmbeddingStore embeddingStore = DuckDBEmbeddingStore.builder()
@@ -43,8 +45,23 @@ public class InitStore {
             .tableName(VECTOR_TABLE_NAME)
             .build();
 
-    public static final AllMiniLmL6V2QuantizedEmbeddingModel embeddingModel =
-            new AllMiniLmL6V2QuantizedEmbeddingModel();
+//    public static final AllMiniLmL6V2QuantizedEmbeddingModel embeddingModel =
+//            new AllMiniLmL6V2QuantizedEmbeddingModel();
+
+    private static Properties properties;
+
+    static {
+        properties  = PropertiesUtil.loadByPath(MODEL_CONFIG_PATH);
+    }
+
+
+    public static final EmbeddingModel embeddingModel = OpenAiEmbeddingModel.builder()
+            .baseUrl(properties.getProperty("baseUrl"))
+            .apiKey(properties.getProperty("apiKey"))
+            .modelName("text-embedding-v3")
+//            .logRequests(true)
+//            .logResponses(true)
+            .build();
 
 
     public static void main(String[] args) {
@@ -93,15 +110,13 @@ public class InitStore {
                 .streamingChatLanguageModel(chatModel.getStreamingChatLanguageModel())
                 .build();
         TokenStream tokenStream = keyIdTranslate.ideaKeyMapTranslateStream(stringBuilder.toString());
-        AtomicReference<Boolean> isComplete = new AtomicReference<>(false);
-        AtomicReference<String> res = new AtomicReference<>("");
         tokenStream.onPartialResponse((s) -> {
             LOGGER.info("partial response str {}", s);
         });
+        CompletableFuture<ChatResponse> futureResponse = new CompletableFuture<>();
         tokenStream.onCompleteResponse(chatResponse -> {
             LOGGER.info("message text {}", chatResponse.aiMessage().text());
-            isComplete.set(true);
-            res.set(chatResponse.aiMessage().text());
+            futureResponse.complete(chatResponse);
         });
         tokenStream.onRetrieved(contents -> {
             LOGGER.info("content list {}", contents);
@@ -110,21 +125,18 @@ public class InitStore {
             LOGGER.error("request error ", throwable);
         });
         tokenStream.start();
-        while (!isComplete.get()) {
-            LOGGER.info("wait 10s..");
-            try {
-                Thread.sleep(10000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+        String res = null;
+        try {
+            ChatResponse chatResponse = futureResponse.get(3, TimeUnit.MINUTES);
+            res = chatResponse.aiMessage().text();
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
         }
-        var parseRes = JsonParser.parseString(res.get());
-        if (parseRes instanceof JsonObject jsonObject) {
-            Iterator<Map.Entry<String, JsonElement>> iterator = jsonObject.entrySet().iterator();
-            while (iterator.hasNext()) {
-                Map.Entry<String, JsonElement> data = iterator.next();
+        if (res != null) {
+            JSONObject jsonObject = JSONObject.parseObject(res);
+            for (Map.Entry<String, Object> data : jsonObject.entrySet()) {
                 TranslateItem translateItem = new TranslateItem(data.getKey(),
-                        data.getValue().getAsString());
+                        String.valueOf(data.getValue()));
                 translateItemList.add(translateItem);
             }
         }
@@ -156,9 +168,10 @@ public class InitStore {
                 .filter(new IsEqualTo("id", id)).build();
         List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(request).matches();
         if (matches.isEmpty()) {
-            int i = 1;
+            AtomicInteger i = new AtomicInteger(1);
             keyList.forEach(key -> {
-                metadata.put("keyboard-shortcut-" + i, key);
+                metadata.put("keyboard-shortcut-" + i.get(), key);
+                i.getAndIncrement();
             });
             metadata.put("id", id);
             TextSegment textSegment = TextSegment.from(id, metadata);

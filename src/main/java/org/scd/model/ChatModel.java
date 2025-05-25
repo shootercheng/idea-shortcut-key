@@ -2,10 +2,9 @@ package org.scd.model;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
-import dev.langchain4j.model.language.StreamingLanguageModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
-import dev.langchain4j.model.openai.OpenAiStreamingLanguageModel;
+import org.scd.util.PropertiesUtil;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -24,12 +23,7 @@ public class ChatModel {
 
     public ChatModel(String configPath, Boolean isStream) {
         this.configPath = configPath;
-        modelProperties = new Properties();
-        try {
-            modelProperties.load(new FileInputStream(configPath));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        modelProperties = PropertiesUtil.loadByPath(configPath);
         String baseUrl = modelProperties.getProperty("baseUrl");
         if (baseUrl == null) {
             throw new IllegalArgumentException("baseUrl未配置");
