@@ -12,34 +12,30 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <dev.langchain4j.version>1.0.0-beta3</dev.langchain4j.version>
+    <dev.langchain4j.version>1.0.1</dev.langchain4j.version>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>dev.langchain4j</groupId>
       <artifactId>langchain4j-community-duckdb</artifactId>
-      <version>${dev.langchain4j.version}</version>
+      <version>1.0.0-beta4</version>
     </dependency>
     <dependency>
       <groupId>dev.langchain4j</groupId>
       <artifactId>langchain4j</artifactId>
-      <version>${dev.langchain4j.version}</version>
     </dependency>
     <dependency>
       <groupId>dev.langchain4j</groupId>
       <artifactId>langchain4j-web-search-engine-searchapi</artifactId>
-      <version>${dev.langchain4j.version}</version>
     </dependency>
     <dependency>
       <groupId>dev.langchain4j</groupId>
       <artifactId>langchain4j-embeddings-all-minilm-l6-v2-q</artifactId>
-      <version>${dev.langchain4j.version}</version>
     </dependency>
     <dependency>
       <groupId>dev.langchain4j</groupId>
       <artifactId>langchain4j-open-ai</artifactId>
-      <version>${dev.langchain4j.version}</version>
     </dependency>
     <dependency>
       <groupId>org.duckdb</groupId>
@@ -69,6 +65,18 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>dev.langchain4j</groupId>
+        <artifactId>langchain4j-bom</artifactId>
+        <version>${dev.langchain4j.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <build>
     <plugins>

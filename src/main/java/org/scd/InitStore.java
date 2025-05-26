@@ -45,9 +45,6 @@ public class InitStore {
             .tableName(VECTOR_TABLE_NAME)
             .build();
 
-//    public static final AllMiniLmL6V2QuantizedEmbeddingModel embeddingModel =
-//            new AllMiniLmL6V2QuantizedEmbeddingModel();
-
     private static Properties properties;
 
     static {
@@ -59,8 +56,8 @@ public class InitStore {
             .baseUrl(properties.getProperty("baseUrl"))
             .apiKey(properties.getProperty("apiKey"))
             .modelName("text-embedding-v3")
-//            .logRequests(true)
-//            .logResponses(true)
+            .logRequests(true)
+            .logResponses(true)
             .build();
 
 
@@ -69,7 +66,7 @@ public class InitStore {
         List<TranslateItem> translateItemList = translate(keyMapRes);
         // save to idea_plugin table
         // reset
-        embeddingStore.removeAll();
+//        embeddingStore.removeAll();
         init(keyMapRes, translateItemList);
     }
 
@@ -107,7 +104,7 @@ public class InitStore {
     private static void addTranslate(StringBuilder stringBuilder, List<TranslateItem> translateItemList) {
         ChatModel chatModel = new ChatModel(MODEL_CONFIG_PATH, true);
         KeyIdTranslate keyIdTranslate = AiServices.builder(KeyIdTranslate.class)
-                .streamingChatLanguageModel(chatModel.getStreamingChatLanguageModel())
+                .streamingChatModel(chatModel.getStreamingChatModel())
                 .build();
         TokenStream tokenStream = keyIdTranslate.ideaKeyMapTranslateStream(stringBuilder.toString());
         tokenStream.onPartialResponse((s) -> {

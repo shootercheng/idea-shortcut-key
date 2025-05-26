@@ -21,14 +21,14 @@ public class ChatModelTest {
     @Test
     public void testCreateChatModel() {
         ChatModel chatModel = new ChatModel("/config/shortcut-key/model.properties", false);
-        Assert.assertNotNull(chatModel.getChatLanguageModel());
+        Assert.assertNotNull(chatModel.getOpenAiChatModel());
     }
 
     @Test
     public void testAiAskQuestion() {
         ChatModel chatModel = new ChatModel("/config/shortcut-key/model.properties", false);
         KeyIdTranslate keyIdTranslate = AiServices.builder(KeyIdTranslate.class)
-                .chatLanguageModel(chatModel.getChatLanguageModel())
+                .chatModel(chatModel.getOpenAiChatModel())
                 .build();
         String aiAnswer = keyIdTranslate.answer("你好,你是谁");
         LOGGER.info("ai answer {}", aiAnswer);
@@ -39,7 +39,7 @@ public class ChatModelTest {
     public void testAiTranslate() {
         ChatModel chatModel = new ChatModel("/config/shortcut-key/model.properties", false);
         KeyIdTranslate keyIdTranslate = AiServices.builder(KeyIdTranslate.class)
-                .chatLanguageModel(chatModel.getChatLanguageModel())
+                .chatModel(chatModel.getOpenAiChatModel())
                 .build();
         String res = keyIdTranslate.ideaKeyMapTranslate("EditorToggleCase,GotoCustomRegion,FindInPath");
         LOGGER.info("translate res {}", res);
@@ -50,7 +50,7 @@ public class ChatModelTest {
     public void testStreamTranslate() throws ExecutionException, InterruptedException, TimeoutException {
         ChatModel chatModel = new ChatModel("/config/shortcut-key/model.properties", true);
         KeyIdTranslate keyIdTranslate = AiServices.builder(KeyIdTranslate.class)
-                .streamingChatLanguageModel(chatModel.getStreamingChatLanguageModel())
+                .streamingChatModel(chatModel.getStreamingChatModel())
                 .build();
         TokenStream tokenStream = keyIdTranslate.ideaKeyMapTranslateStream("EditorToggleCase,GotoCustomRegion,FindInPath");
         tokenStream.onPartialResponse((s) -> {

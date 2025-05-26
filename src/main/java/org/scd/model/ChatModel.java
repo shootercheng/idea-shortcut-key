@@ -1,13 +1,10 @@
 package org.scd.model;
 
-import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import org.scd.util.PropertiesUtil;
 
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Properties;
 
@@ -17,9 +14,9 @@ public class ChatModel {
 
     private String configPath;
 
-    private ChatLanguageModel chatLanguageModel;
+    private OpenAiChatModel openAiChatModel;
 
-    private StreamingChatLanguageModel streamingChatLanguageModel;
+    private StreamingChatModel streamingChatModel;
 
     public ChatModel(String configPath, Boolean isStream) {
         this.configPath = configPath;
@@ -45,7 +42,7 @@ public class ChatModel {
             logResponses = "false";
         }
         if (isStream) {
-            this.streamingChatLanguageModel = OpenAiStreamingChatModel.builder()
+            this.streamingChatModel = OpenAiStreamingChatModel.builder()
                     .baseUrl(baseUrl)
                     .apiKey(apiKey)
                     .modelName(modelName)
@@ -54,7 +51,7 @@ public class ChatModel {
                     .timeout(Duration.ofMinutes(3))
                     .build();
         } else {
-            this.chatLanguageModel = OpenAiChatModel.builder()
+            this.openAiChatModel = OpenAiChatModel.builder()
                     .baseUrl(baseUrl)
                     .apiKey(apiKey)
                     .modelName(modelName)
@@ -65,11 +62,11 @@ public class ChatModel {
         }
     }
 
-    public ChatLanguageModel getChatLanguageModel() {
-        return chatLanguageModel;
+    public OpenAiChatModel getOpenAiChatModel() {
+        return openAiChatModel;
     }
 
-    public StreamingChatLanguageModel getStreamingChatLanguageModel() {
-        return streamingChatLanguageModel;
+    public StreamingChatModel getStreamingChatModel() {
+        return streamingChatModel;
     }
 }
